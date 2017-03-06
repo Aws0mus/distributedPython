@@ -1,52 +1,63 @@
-import psycopg2
 from time import sleep
 import random
+import pika
+
+#TODO put parameters in other file
+
+#RabbitMQ
+rabbit_host = 'localhost'
 
 class Spider:
 
-    def check_broker(self):
-        conn = psycopg2.connect("dbname=" + "distributed" +
-                                " user=" + "test" +
-                                " host=" + "localhost" +
-                                " port=" + "9999" +
-                                " password=" + "password")
-        return conn
+    def __init__(self):
+        rabbit_conn = self.check_rabbit()
+        if rabbit_conn is None:
+            return
+
+        channel = rabbit_conn.channel()
+        channel.queue_declare(queue='postgresqlQueue', durable=True)
+        channel.queue_declare(queue='elasticQueue', durable=True)
+
+    def check_rabbit(self):
+        try:
+            connection = pika.BlockingConnection(pika.ConnectionParameters(
+                host=rabbit_host))
+        except Exception:
+            connection = None
+        return connection
 
     def visit(self):
-        soup = "A"*10000
-        link = "B"*64
+        soup = "A"*100
+        link = "B"*10
         links = []
         for i in range(0, 100):
             links.append(link+str(i))
         print("Duermo")
-        sleep(random.randint(5, 15))
+        sleep(random.randint(5, 8))
         print("Despierto e inserto")
-        self.save_postgres(links)
-        #self.save_elastic(soup)
+        self.save_rabbit(links, soup)
 
-    def save_postgres(self, links):
-        try:
-            conn = self.check_broker()
-        except Exception as e:
-            print(e)
-            sleep(2)
+    def save_rabbit(self, postgresql, elastic):
+        rabbit_conn = self.check_rabbit()
+        if rabbit_conn is None:
             return
-        try:
-            cur = conn.cursor()
-            for link in links:
-                cur.execute("INSERT INTO tabla2 VALUES (DEFAULT , %s)", [link])
-            conn.commit()
-        except Exception as e:
-            print(e)
-            conn.rollback()
+        channel = rabbit_conn.channel()
 
-        cur.close()
-        conn.close()
+        channel.basic_publish(exchange='',
+                              routing_key='postgresqlQueue',
+                              body=', '.join(postgresql),
+                              properties=pika.BasicProperties(
+                                  delivery_mode=2,  # make message persistent
+                              ))
+        channel.basic_publish(exchange='',
+                              routing_key='elasticQueue',
+                              body=elastic,
+                              properties=pika.BasicProperties(
+                                  delivery_mode=2,  # make message persistent
+                              ))
 
-
-    def save_elastic(self, text):
-        pass
-
+        print(" [x] Sent %r" % postgresql)
+        rabbit_conn.close()
 
 spider = Spider()
 while True:
