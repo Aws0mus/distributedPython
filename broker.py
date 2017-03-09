@@ -1,25 +1,50 @@
 import pika
-from time import sleep
 import psycopg2
-
+import settings
+import sys
 
 #Postgresql
-psql_name = "distributed"
-psql_user = "test"
-psql_host = "localhost"
-psql_port = "9999"
-psql_password = "password"
+psql_name = settings.psql_name
+psql_user = settings.psql_user
+psql_host = settings.psql_host
+psql_port = settings.pg_pool_port
+psql_password = settings.psql_password
+
+#RabbitMQ
+rabbit_host = settings.rabbit_host
+
+#Queues
+postgresQueue = settings.postgresQueue
+elasticQueue = settings.elasticQueue
 
 
 class Broker:
 
     def __init__(self):
-        connection = pika.BlockingConnection(pika.ConnectionParameters(
-                host='localhost'))
-        channel = connection.channel()
+        self.connection = self.check_rabbit()
+        if self.connection is None:
+            print("RabbitMQ Error")
+            return
 
-        channel.queue_declare(queue='postgresqlQueue', durable=True)
-        channel.queue_declare(queue='elasticQueue', durable=True)
+        self.channel = self.connection.channel()
+
+        self.channel.queue_declare(queue=postgresQueue, durable=True)
+        self.channel.queue_declare(queue=elasticQueue, durable=True)
+
+        self.conn = self.check_pool()
+        if self.conn is None:
+            print("Pgpool Error")
+            return
+
+    def check_rabbit(self):
+        try:
+            connection = pika.BlockingConnection(pika.ConnectionParameters(
+                host=rabbit_host))
+        except Exception:
+            connection = None
+        return connection
+
+    def main(self):
 
         print(' [*] Waiting for messages. To exit press CTRL+C')
 
@@ -37,15 +62,15 @@ class Broker:
             print(" [x] Done")
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
-        channel.basic_qos(prefetch_count=1)
-        channel.basic_consume(callback_postgresql,
-                              queue='postgresqlQueue')
-        channel.basic_consume(callback_elastic,
-                              queue='elasticQueue')
+        self.channel.basic_qos(prefetch_count=1)
+        self.channel.basic_consume(callback_postgresql,
+                              queue=postgresQueue)
+        self.channel.basic_consume(callback_elastic,
+                              queue=elasticQueue)
 
-        channel.start_consuming()
+        self.channel.start_consuming()
 
-    def check_postgres(self):
+    def check_pool(self):
         try:
             conn = psycopg2.connect("dbname=" + psql_name +
                                     " user=" + psql_user +
@@ -58,19 +83,28 @@ class Broker:
         return conn
 
     def save_postgres(self, links):
-        conn = self.check_postgres()
-        if conn is None:
-            return
         try:
-            cur = conn.cursor()
+            cur = self.conn.cursor()
             for link in links:
                 cur.execute("INSERT INTO tabla2 VALUES (DEFAULT , %s)", [link])
-            conn.commit()
+            self.conn.commit()
         except Exception as e:
             print(e)
-            conn.rollback()
+            self.conn.rollback()
 
         cur.close()
-        conn.close()
 
-Broker()
+    def cleanup(self):
+        self.connection.close()
+        self.conn.close()
+        sys.exit(1)
+
+    def execute(self):
+        try:
+            self.main()
+        except KeyboardInterrupt:
+            self.cleanup()
+
+
+if __name__ == '__main__':
+    Broker().execute()

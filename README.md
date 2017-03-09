@@ -2,8 +2,9 @@
 **Requeriments**
 
 pgpool
-mqrabbit
+rabbitmq >= 3.5
 posgresql
+elasticsearch
 
 *Use*
 
