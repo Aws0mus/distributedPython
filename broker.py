@@ -49,7 +49,7 @@ class Broker:
         print(' [*] Waiting for messages. To exit press CTRL+C')
 
         def callback_postgresql(ch, method, properties, body):
-            links = body.split()
+            links = body.decode("utf-8").split()
             print(" [x] Inserting %r" % links)
 
             self.save_postgres(links)
@@ -58,7 +58,8 @@ class Broker:
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
         def callback_elastic(ch, method, properties, body):
-            print(" [x] Inserting %r" % body)
+            elastic = body.decode("utf-8")
+            print(" [x] Inserting %r" % elastic)
             print(" [x] Done")
             ch.basic_ack(delivery_tag=method.delivery_tag)
 

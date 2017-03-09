@@ -60,7 +60,7 @@ class Dispatcher:
 
     def main(self):
 
-        initial = 6100
+        initial = 1
         step = 100
 
         while True:
