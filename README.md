@@ -9,9 +9,9 @@
 
 *Use*
 
-**cmd1**
-sudo mkdir /var/run/pgpool
-sudo pgpool -n
+**cmd1**  
+sudo mkdir /var/run/pgpool  
+sudo pgpool -n  
 
 **cmd2**
 
