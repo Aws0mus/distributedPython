@@ -1,10 +1,11 @@
 # My project's README
 **Requeriments**
 
-pgpool
-rabbitmq >= 3.5
-posgresql
-elasticsearch
+
+* pgpool
+* rabbitmq >= 3.5
+* posgresql
+* elasticsearch
 
 *Use*
 
