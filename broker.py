@@ -49,7 +49,7 @@ class Broker:
         print(' [*] Waiting for messages. To exit press CTRL+C')
 
         def callback_postgresql(ch, method, properties, body):
-            links = body.decode("utf-8").split()
+            links = body.decode("utf-8").split(',')
             print(" [x] Inserting %r" % links)
 
             self.save_postgres(links)
@@ -86,11 +86,18 @@ class Broker:
     def save_postgres(self, links):
         try:
             cur = self.conn.cursor()
-            for link in links:
-                cur.execute("INSERT INTO tabla2 VALUES (DEFAULT , %s)", [link])
+
+            #for link in links:
+            #    aa = cur.mogrify("(DEFAULT, %s)", (link,)).decode("utf-8")
+            #    print(aa)
+            args_str = ','.join(cur.mogrify("(DEFAULT, %s)", (x,)).decode("utf-8") for x in links)
+            print(args_str)
+            cur.execute("INSERT INTO tabla2 VALUES " + args_str)
+
+            #cur.execute("INSERT INTO tabla2 VALUES (DEFAULT , %s)", [link])
             self.conn.commit()
         except Exception as e:
-            print(e)
+            print("Exception: " + str(e))
             self.conn.rollback()
 
         cur.close()

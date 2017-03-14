@@ -19,7 +19,6 @@ rabbit_host = settings.rabbit_host
 #Queues
 targetsQueue = settings.targetsQueue
 
-
 class Dispatcher:
 
     def __init__(self):
@@ -34,7 +33,7 @@ class Dispatcher:
 
         self.conn = self.check_pool()
         if self.conn is None:
-            print("PostgreSQL Error")   #TODO change by pgpool
+            print("PostgreSQL Error")
             return
         self.cur = self.conn.cursor()
 
